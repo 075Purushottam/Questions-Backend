@@ -1,10 +1,11 @@
 from django.urls import path
 from .views import (
-    BoardList, ClassList, SubjectList, BookList,
+    BoardList, ClassList, MyPapersView, SubjectList, BookList,
     ChapterList, QuestionList, QuestionDetail,
     get_subjects_by_class, get_questions, get_books, get_chapters_by_book, get_class_name, get_subject_name, get_board_name, get_questions_by_chapters,
-    MyPaperView, CreateFullPaperView,
-    SignupView, LoginView
+    CreateFullPaperView,
+    SignupView, LoginView,
+    MyPapersView
 )
 
 urlpatterns = [
@@ -29,7 +30,7 @@ urlpatterns = [
     # path('login/', login),
     path("signup/", SignupView.as_view(), name="signup"),
     path("login/", LoginView.as_view(), name="login"),
-    path('my-papers/', MyPaperView.as_view(), name='my-papers'),
-    # urls.py
+    # path('my-papers/', MyPaperView.as_view(), name='my-papers'),
     path("papers/create/", CreateFullPaperView.as_view(), name="create-paper"),
+    path('my-papers/', MyPapersView.as_view(), name='my-papers'),
 ]
