@@ -7,7 +7,8 @@ from .models import Board, SchoolClass, Subject, Book, Chapter, Question, User, 
 from .serializers import (
     BoardSerializer, SchoolClassSerializer, SubjectSerializer,
     BookSerializer, ChapterSerializer, QuestionSerializer,
-    SignupSerializer, LoginSerializer, PaperListSerializer
+    SignupSerializer, LoginSerializer, PaperListSerializer,
+    PaperDetailSerializer
 )
 from .filters import QuestionFilter
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -282,13 +283,14 @@ def get_questions_by_chapters(request):
     serializer = QuestionSerializer(questions, many=True)
     return Response(serializer.data)
 
-class MyPaperView(generics.ListAPIView):
-    serializer_class = PaperListSerializer
+
+class MyPapersView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        return Paper.objects.filter(user=self.request.user).order_by('-created_at')
-
+    def get(self, request):
+        papers = Paper.objects.filter(user=self.request.user).order_by("-created_at")
+        serializer = PaperDetailSerializer(papers, many=True)
+        return Response(serializer.data)
 
 # views.py
 
@@ -333,10 +335,12 @@ class CreateFullPaperView(APIView):
             for question_index, q in enumerate(section["questions"]):
                 question_id = q.get("question_id")
 
-                if isinstance(question_id, str) and question_id.startswith(('custom-', 'ai-q-', 'match-')):
+                if isinstance(question_id, str) and question_id.startswith(('custom-', 'ai-q-', 'match-', 'merged-')):
                     # Determine question type based on prefix
                     if question_id.startswith('match-'):
                         q_type = 'match'
+                    elif question_id.startswith('merged-'):
+                        q_type = q.get("type", "short")  # default to short if not provided
                     else:
                         q_type = 'short'  # for custom- and ai-q-
 
