@@ -96,6 +96,7 @@ class QuestionBulkSerializer(serializers.ListSerializer):
 
 
 class PaperListSerializer(serializers.ModelSerializer):
+    # school_name = serializers.CharField(source="school_name.name")
     school_class = serializers.CharField(source="school_class.name")
     subject = serializers.CharField(source="subject.name")
     board = serializers.CharField(source="board.name")
@@ -105,6 +106,7 @@ class PaperListSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'title',
+            'school_name',
             'exam_name',
             'school_class',
             'subject',
@@ -138,6 +140,7 @@ class PaperSectionSerializer(serializers.ModelSerializer):
 
 class PaperDetailSerializer(serializers.ModelSerializer):
     sections = PaperSectionSerializer(many=True)
+    # school_name = serializers.CharField(source="school_name.name")
     school_class = serializers.CharField(source="school_class.name")
     subject = serializers.CharField(source="subject.name")
     board = serializers.CharField(source="board.name")
@@ -147,12 +150,14 @@ class PaperDetailSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "title",
+            "school_name",
             "exam_name",
             "school_class",
             "subject",
             "board",
             "max_marks",
             "duration",
+            "exam_instructions",
             "created_at",
             "sections"
         ]

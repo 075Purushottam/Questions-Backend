@@ -13,20 +13,11 @@ from .serializers import (
 from .filters import QuestionFilter
 from rest_framework_simplejwt.tokens import RefreshToken
 
-# @api_view(['POST'])
-# def signup(request):
-#     serializer = SignupSerializer(data=request.data)
-#     if serializer.is_valid():
-#         serializer.save()
-#         return Response({
-#             "success": True,
-#             "message": "Account created successfully! Please login.",
-#             "user": serializer.data
-#         })
-#     return Response({
-#         "success": False,
-#         "message": serializer.errors
-#     })
+from .gemini_client import GeminiClient
+from .prompts import SYSTEM_PROMPT
+import json
+
+
 
 from rest_framework.views import APIView
 
@@ -44,31 +35,7 @@ class SignupView(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# @api_view(['POST'])
-# def login(request):
-    # serializer = LoginSerializer(data=request.data)
-    # if serializer.is_valid():
-    #     user = serializer.validated_data
 
-    #     refresh = RefreshToken.for_user(user)
-
-    #     return Response({
-    #         "success": True,
-    #         "message": "Login successful!",
-    #         "access_token": str(refresh.access_token),
-    #         "refresh_token": str(refresh),
-    #         "user": {
-    #             "id": user.id,
-    #             "name": user.name,
-    #             "email": user.email,
-    #             "created_at": user.created_at,
-    #             "updated_at": user.updated_at
-    #         }
-    #     })
-    # return Response({
-    #     "success": False,
-    #     "message": "Invalid email or password."
-    # })
 class LoginView(APIView):
     def post(self, request):
         serializer = LoginSerializer(
@@ -294,8 +261,6 @@ class MyPapersView(APIView):
 
 # views.py
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from django.shortcuts import get_object_or_404
@@ -311,17 +276,21 @@ class CreateFullPaperView(APIView):
         print("Received data for paper creation:", data)  # Debug print
         paper_details = data.get("paperDetails")
         sections = data.get("sections", [])
+        instruction_list = paper_details.get("instructions", "")
+        exam_instructions = "\n".join(instruction_list) if instruction_list else ""
 
         # 🔹 Create Paper
         paper = Paper.objects.create(
             user=request.user,
             title=paper_details["examName"],
+            school_name=paper_details["schoolName"],
             exam_name=paper_details["examName"],
             school_class_id=paper_details["class_id"],
             subject_id=paper_details["subject_id"],
             board_id=paper_details["board_id"],
             max_marks=paper_details["maxMarks"],
             duration=paper_details["time"],
+            exam_instructions=exam_instructions
         )
 
         # 🔹 Create Sections + Link Questions
@@ -364,6 +333,7 @@ class CreateFullPaperView(APIView):
                         chapter=chapter,
                         subject=paper.subject,
                         question_text=q.get("question", ""),
+                        answer=q.get("answer", {}),
                         type=q_type,
                         difficulty='medium',
                         marks=q.get("marks", 1),
@@ -383,3 +353,68 @@ class CreateFullPaperView(APIView):
             "success": True,
             "message": "Paper created successfully"
         })
+
+
+from rest_framework import status
+import json
+import uuid
+
+@api_view(['POST'])
+def chatbot_generate_question(request):
+    print("Chatbot Request:", request.data)
+
+    user_query = request.data.get("message", "")
+    print("User_Query:", user_query)
+
+    if not user_query:
+        return Response(
+            {"error": "Query parameter is required"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    messages = [
+        {"role": "user", "parts": [{"text": user_query}]}
+    ]
+
+    try:
+        gemini_client = GeminiClient()
+        response = gemini_client.generate_text(
+            messages=messages,
+            system_instruction=SYSTEM_PROMPT,
+            model="gemini-2.5-flash"
+        )
+    except Exception as e:
+        print("Error calling Gemini API:", str(e))
+        return Response(
+            {"error": "Failed to generate questions"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+    try:
+        if response.startswith("```json") and response.endswith("```"):
+            response = response[len("```json"): -len("```")].strip()
+
+        response_json = json.loads(response)
+        print("Gemini response:", response_json)
+
+        if response_json.get("flag"):
+            # generate unique IDs for AI-generated questions using uuid
+            for q in response_json.get("questions", []):
+                q["id"] = f"ai-q-{uuid.uuid4()}"
+            
+            print("resposne after adding IDs:", response_json)
+            return Response({
+                "success": True,
+                "questions": response_json.get("questions", [])
+            })
+
+        return Response({
+            "success": False,
+            "message": f"Missing fields: {', '.join(response_json.get('missing', []))}"
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    except json.JSONDecodeError:
+        return Response(
+            {"error": "Failed to parse model response"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

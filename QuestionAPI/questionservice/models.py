@@ -138,6 +138,7 @@ class Question(models.Model):
 class Paper(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='papers')
     title = models.CharField(max_length=255)
+    school_name = models.CharField(max_length=255, null=True, blank=True)  # New field for school name
     exam_name = models.CharField(max_length=255)
 
     school_class = models.ForeignKey(SchoolClass, on_delete=models.RESTRICT)
@@ -146,6 +147,8 @@ class Paper(models.Model):
 
     max_marks = models.IntegerField()
     duration = models.IntegerField()  # minutes
+
+    exam_instructions = models.TextField(blank=True, null=True)  # optional field for instructions
 
     created_at = models.DateTimeField(auto_now_add=True)
 
