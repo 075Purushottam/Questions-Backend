@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (
     BoardList, ClassList, MyPapersView, SubjectList, BookList,
-    ChapterList, QuestionList, QuestionDetail,
+    ChapterList, QuestionList, QuestionDetail, chatbot_generate_question,
     get_subjects_by_class, get_questions, get_books, get_chapters_by_book, get_class_name, get_subject_name, get_board_name, get_questions_by_chapters,
     CreateFullPaperView,
     SignupView, LoginView,
@@ -33,4 +33,5 @@ urlpatterns = [
     # path('my-papers/', MyPaperView.as_view(), name='my-papers'),
     path("papers/create/", CreateFullPaperView.as_view(), name="create-paper"),
     path('my-papers/', MyPapersView.as_view(), name='my-papers'),
+    path("chatbot/generate/", chatbot_generate_question, name="chatbot_generate"),
 ]
