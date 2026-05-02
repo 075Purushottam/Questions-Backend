@@ -270,84 +270,97 @@ class CreateFullPaperView(APIView):
     print("CreateFullPaperView loaded")  # Debug print
     @transaction.atomic
     def post(self, request):
-        print("User:", request.user)
 
-        data = request.data
-        print("Received data for paper creation:", data)  # Debug print
-        paper_details = data.get("paperDetails")
-        sections = data.get("sections", [])
-        instruction_list = paper_details.get("instructions", "")
-        exam_instructions = "\n".join(instruction_list) if instruction_list else ""
+        try:
+            print("User:", request.user)
+            data = request.data
+            print("Received data for paper creation:", data)  # Debug print
+            paper_details = data.get("paperDetails")
+            sections = data.get("sections", [])
+            instruction_list = paper_details.get("instructions", "")
+            exam_instructions = "\n".join(instruction_list) if instruction_list else ""
 
-        # 🔹 Create Paper
-        paper = Paper.objects.create(
-            user=request.user,
-            title=paper_details["examName"],
-            school_name=paper_details["schoolName"],
-            exam_name=paper_details["examName"],
-            school_class_id=paper_details["class_id"],
-            subject_id=paper_details["subject_id"],
-            board_id=paper_details["board_id"],
-            max_marks=paper_details["maxMarks"],
-            duration=paper_details["time"],
-            exam_instructions=exam_instructions
-        )
-
-        # 🔹 Create Sections + Link Questions
-        for section_index, section in enumerate(sections):
-            paper_section = PaperSection.objects.create(
-                paper=paper,
-                name=section["sectionTitle"],
-                order=section_index
+            # 🔹 Create Paper
+            paper = Paper.objects.create(
+                user=request.user,
+                title=paper_details["examName"],
+                school_name=paper_details["schoolName"],
+                exam_name=paper_details["examName"],
+                school_class_id=paper_details["class_id"],
+                subject_id=paper_details["subject_id"],
+                board_id=paper_details["board_id"],
+                max_marks=paper_details["maxMarks"],
+                duration=paper_details["time"],
+                exam_instructions=exam_instructions
             )
 
-            for question_index, q in enumerate(section["questions"]):
-                question_id = q.get("question_id")
+            print("Paper created with ID:", paper.id,)  # Debug print
 
-                if isinstance(question_id, str) and question_id.startswith(('custom-', 'ai-q-', 'match-', 'merged-')):
-                    # Determine question type based on prefix
-                    if question_id.startswith('match-'):
-                        q_type = 'match'
-                    elif question_id.startswith('merged-'):
-                        q_type = q.get("type", "short")  # default to short if not provided
-                    else:
-                        q_type = 'short'  # for custom- and ai-q-
-
-                    # Get or create custom book
-                    book, created = Book.objects.get_or_create(
-                        title="Custom Questions",
-                        board_id=paper.board_id,
-                        school_class_id=paper.school_class_id,
-                        subject_id=paper.subject_id,
-                        defaults={'author': 'AI/Custom'}
-                    )
-                    # Get or create custom chapter
-                    chapter, created = Chapter.objects.get_or_create(
-                        book=book,
-                        chapter_number=1,
-                        defaults={'name': 'Custom Chapter'}
-                    )
-                    # Create question
-                    question = Question.objects.create(
-                        book=book,
-                        chapter=chapter,
-                        subject=paper.subject,
-                        question_text=q.get("question", ""),
-                        answer=q.get("answer", {}),
-                        type=q_type,
-                        difficulty='medium',
-                        marks=q.get("marks", 1),
-                        created_by=request.user
-                    )
-                else:
-                    question = get_object_or_404(Question, id=question_id)
-
-                PaperQuestion.objects.create(
-                    paper_section=paper_section,
-                    question=question,
-                    marks=q.get("marks", 1),
-                    order=question_index
+            # 🔹 Create Sections + Link Questions
+            for section_index, section in enumerate(sections):
+                paper_section = PaperSection.objects.create(
+                    paper=paper,
+                    name=section["sectionTitle"],
+                    order=section_index
                 )
+                print(f"  Section '{paper_section.name}' created with ID: {paper_section.id}")  # Debug print
+
+                for question_index, q in enumerate(section["questions"]):
+                    question_id = q.get("question_id")
+
+                    if isinstance(question_id, str) and question_id.startswith(('custom-', 'ai-q-', 'match-', 'merged-')):
+                        # Determine question type based on prefix
+                        if question_id.startswith('match-'):
+                            q_type = 'match'
+                        elif question_id.startswith('merged-'):
+                            q_type = q.get("type", "short")  # default to short if not provided
+                        else:
+                            q_type = 'short'  # for custom- and ai-q-
+
+                        # Get or create custom book
+                        book, created = Book.objects.get_or_create(
+                            title="Custom Questions",
+                            board_id=paper.board_id,
+                            school_class_id=paper.school_class_id,
+                            subject_id=paper.subject_id,
+                            defaults={'author': 'AI/Custom'}
+                        )
+                        print(f"    Book '{book.title}' (ID: {book.id}) - {'Created' if created else 'Exists'}")  # Debug print
+                        # Get or create custom chapter
+                        chapter, created = Chapter.objects.get_or_create(
+                            book=book,
+                            chapter_number=1,
+                            defaults={'name': 'Custom Chapter'}
+                        )
+                        print(f"    Chapter '{chapter.name}' (ID: {chapter.id}) - {'Created' if created else 'Exists'}")  # Debug print
+                        # Create question
+                        question = Question.objects.create(
+                            book=book,
+                            chapter=chapter,
+                            subject=paper.subject,
+                            question_text=q.get("question", ""),
+                            answer=q.get("answer", {}),
+                            type=q_type,
+                            difficulty='medium',
+                            marks=q.get("marks", 1),
+                            created_by=request.user
+                        )
+                    else:
+                        question = get_object_or_404(Question, id=question_id)
+
+                    PaperQuestion.objects.create(
+                        paper_section=paper_section,
+                        question=question,
+                        marks=q.get("marks", 1),
+                        order=question_index
+                    )
+                    print(f"    Question '{question.question_text}' created with ID: {question.id}")  # Debug print
+        except Exception as e:
+            print("Error during paper creation:", str(e))
+            return Response(
+                {"success": False, "message": "Failed to create paper", "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         return Response({
             "success": True,
