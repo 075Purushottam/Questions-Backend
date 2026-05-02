@@ -18,10 +18,10 @@ Rules:
 Question object format:
 {
   "question_text": "string",
-  "type": "MCQ | Short Answer | Long Answer | True False | Fill in the Blank | Match the Following",
-  "difficulty": "Easy | Medium | Hard",
+  "type": "mcq | short | long | true_false | fill_blank | match",
+  "difficulty": "easy | medium | hard",
   "marks": number,
-  "options": ["opt1","opt2","opt3","opt4"], // only if type=MCQ
+  "options": ["opt1","opt2","opt3","opt4"], // only if type=mcq
   "answer": { "text": "string" }
 }
 
